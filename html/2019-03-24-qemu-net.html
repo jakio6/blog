@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>2019-03-24-qemu-net</title>
+  <style>
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="./all.css" type="text/css" media="screen" title="no title" charset="utf-8">
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">2019-03-24-qemu-net</h1>
+</header>
+<h1 id="qemu网络配置">qemu网络配置</h1>
+<blockquote>
+<p>了解一下,参考qemu官方文档,不知道能不能ok啊</p>
+</blockquote>
+<h2 id="网络基础">网络基础</h2>
+<p>QEMU中的网络分为两部分:</p>
+<ul>
+<li>提供给虚拟机的虚拟网络设备(也就是一块PCI网卡)</li>
+<li>与模拟的NIC交互的网络后端(puts packets onto the host's network)</li>
+</ul>
+<p>这两部分都有许多的选择,QEMU默认创建SLiRP用户网络后端,以及一个适合的虚拟机虚拟网卡(比如在x86上是xxx),等同于<code>-net nic -net user</code></p>
+<p>,以及一个适合的虚拟机虚拟网卡(比如在x86上是xxx),等同于<code>-net nic -net user</code></p>
+<p><strong>NOTE</strong>:</p>
+<ul>
+<li>如果指定了网络选项(-net,-netdev),qemu会要求in提供xx</li>
+<li>如果使用默认的SLiRP用户网络,ping(ICMP)不能正常工作(好像是这样的,事实),TCP和UDP可以,不要使用ping来测试网络哦(我试了,是真的)</li>
+</ul>
+<h2 id="网络后端">网络后端</h2>
+<p>视你的环境,有许多网络后端可供选择,创建一个网络后段:</p>
+<pre><code>-netdev TYPE,id=NAME,...
+</code></pre>
+<p>id选项给出虚拟网络设备和网络后端的关联的NAME???如果需要<strong>多个虚拟网络设备</strong>,他们每一个都需要一个网络后端.name用于区分后段, 即使只指定了一个后端也需要使用</p>
+<h2 id="网络后端类型">网络后端类型</h2>
+<p>多数情况下,如果你除了在虚拟机中网络web之外没有别的特殊网络需求的话,用户网络(slirp)是一个非常好的选择,但是如果你需要各种网络服务 或者让你的虚拟机以有效的方式进入一个网络中,tap是最好的选择</p>
+<h3 id="用户网络slirp">用户网络(SLIRP)</h3>
+<p>这个是默认的网络后端,通常是最容易使用的,不需要root权限.但是有一下限制:</p>
+<ul>
+<li>开销很大所以性能不怎么好</li>
+<li>通常情况下,ICMP的流量不能正常工作(不能使用ping)</li>
+<li>在linux主机上,ping在虚拟机中可以工作,但是需要root.xx</li>
+<li>虚拟机不能直接从主机或者外部网络访问</li>
+</ul>
+<p>用户网络使用slirp实现,其在QEMU中提供了一个完整的TCP/IP栈,并且使用这个栈实现了一个虚拟NAT'd 网络</p>
+<p>大概是这样:</p>
+<pre><code>        -----------------
+        | guest os  |
+        | -------   |
+        | |VND  |   |
+        -----------------
+           |
+-----------------------------------------------
+    |10.0.2.2   |10.0.2.3   |10.0.2.4
+    网关      DNS     SMB(可选)
+    |
+-----------------------------------------------
+    |
+    主机网络
+</code></pre>
+<p>在虚拟机内,连接到 网关 ip地址的一个端口或连接到主机上对应的端口,因此<code>ssh 10.0.2.2</code>会从虚拟机连接到主机(是真的,我试了别的)</p>
+<p>可以使用<code>-netdev</code>来配置用户网络</p>
+<p>添加下面的选项会将网络配置为使用192.168.76.0/24来取代默认的10.0.2.0/24 (??),并且从9开始启动DHCP分配(而不是15) (???)</p>
+<pre><code>-netdev user,id=mynet0,net=192.168.76.0/24,dhcpstart=192.168.76.9
+</code></pre>
+<p>可以使用restrict选项来讲虚拟机从主机(以及外部网络)隔离开来...可以用于避免运行于虚拟机内的软件xxxx可以使用hostfwd和guestfwd 选项来选择性覆盖</p>
+<h3 id="在linux主机上开启虚拟机内的ping">在linux主机上开启虚拟机内的ping</h3>
+<ul>
+<li>判断会使用slirp运行QEMU的用户的主要组ID(或者次ID???)</li>
+<li>在<code>/etc/sysctl.conf</code>(或者你的发行版上对应的)中,确保<code>net.ipv4.ping_group_range</code>xx包括上面的ID</li>
+</ul>
+<h3 id="高级用户网络选项">高级用户网络选项</h3>
+<ul>
+<li><code>-netdev</code>还有一些有用的选项:</li>
+<li>使用<code>-netdev user,id=n0,host=addr,hostname=name</code>来设置虚拟机的DHCP地址和名称</li>
+<li>使用<code>-netdev user,id=n0,dns=addr</code>来指定虚拟机可见的DNS服务器地址</li>
+<li>使用<code>-netdev user,id=n0,tftp=xxx,bootfile=yyy</code>来模拟一个TFTP服务器(??)</li>
+<li>使用<code>-netdev user,id=n0,smb=dir,smbserver=addr</code>来在虚拟机和主机之间共享文件</li>
+<li>使用<code>-netdev user,id=n0,hostfwd=hostip:hostport-guestip:guestport</code>来将主机端口转发到你的虚拟器</li>
+</ul>
+<h3 id="tap">Tap</h3>
+<p>Tap网络后端使用主机的一个tab网络设备.提供极佳的性能并且可以配置创建任意类型的拓扑网络.但是需要在主机中 对那个网络进行配置,不同的操作系统配置也不同.通常还需要root权限</p>
+<pre><code>-netdev tap,id=mynet0
+</code></pre>
+<h3 id="vde">VDE</h3>
+<p>VDR网络后端使用虚拟分发以太网.除非你明确知道你需要使用VDE,不然最好不要用这个</p>
+<h3 id="socket">socket</h3>
+<p>socket网络后端允许你创建一个相互间可见的虚拟机的网络.主要用于拓展slirp后端创建的网络来操作虚拟机.通常,如果 你想要在多个虚拟机之间能通信的话,tab后端是更好的选择,除非你没有主机的root权限</p>
+<pre><code>-netdev socket,id=mynet0,listen=:1234
+-netdev socket,id=mynet0,connect=:1234
+</code></pre>
+<h2 id="虚拟网络设备">虚拟网络设备</h2>
+<h3 id="如何创建">如何创建?</h3>
+<p>选择使用何种虚拟网络设备取决于你的需求和虚拟机环境(也就是你在模拟的硬件).比如,如果你要模拟一个特定的嵌入式开发版, 你应该使用匹配其配置的虚拟网络设备</p>
+<p>在有PCI总线的机器上,有更加多的选择..e1000是qemu使用的默认网络适配器.rtl8129是在qemu-kvm中使用的默认网络适配器. 在这个两个项目中.virtio-net(准虚拟化)网络适配器都是性能最好的,但是需要特定的虚拟器驱动支持</p>
+<p>使用<code>-device</code>选项来添加一个特定的虚拟网络设备:</p>
+<pre><code>-device TYPE,netdev=NAME
+</code></pre>
+<p>netdev是先前定义的一个<code>-netdev</code>的name.虚拟网络设备将会和这个网络后端关联</p>
+<p>注意还有其他的设备选项可以选择额外的设备或者改变设备的一些属性.比如:可能或使用<code> -device DEVNAME,netdev=NET-ID,mac=MACADDR,DEV-OPTS</code> ,其中DEVNAME是设备(比如 i82559c),<code>NET_ID</code>是要将设备附加到的网络标识符,MACADDR是设备的MAC地址,DEV-OPTS是其他的一些选项</p>
+<p>使用<code>-devide "?"</code>来获取设备列表..</p>
+<h2 id="网络监视">网络监视</h2>
+<p>可以使用i<code>info netword</code>或者<code>info usernet</code>来审查网络配置</p>
+<p>可以使用filter-dump object来捕获QEMU中的网络流量:</p>
+<pre><code>-netdev user,id=u1 -device e1000,netdev=u1 \
+-object filter-dump,id=f1,netdev=u1,file=dump.dat
+</code></pre>
+<p>在你结束QEMU之后,可以使用类似wireshark之类的软件检查dump.dat文件.要注意的是网络流量捕获只有在QEMU能看到网络数据包的情况下才能工作, 就是说在使用xxxx</p>
+<h2 id="howtos">HOWTOs</h2>
+<h3 id="如何使用ssh来访问虚拟机">如何使用SSH来访问虚拟机</h3>
+<p>最简单的方式讲一个特定的端口转发到虚拟机的22端口:</p>
+<pre><code>-device e1000,netdev=net0
+-netdev user,id=net0,hostfwd=tcp::5555-:22
+</code></pre>
+<p>第一行创建一个虚拟e1000网络设备,第二行创建用户类型的后端,转发本地端口到虚拟机端口5555,然后就可以:</p>
+<pre><code> ssh localhost -p 5555
+</code></pre>
+<p>来对虚拟机进行SSH访问(在虚拟机配置好之后,有防火墙不要忘记关闭)</p>
+<h3 id="如何对主机的一个无线适配器使用tab">如何对主机的一个无线适配器使用tab</h3>
+<p>...</p>
+<h3 id="如何完全关闭网络">如何完全关闭网络?</h3>
+<pre><code>-net none
+</code></pre>
+<p><code>-nodefaultss</code>会禁用的默认的网络配置(还有别的)</p>
+<h3 id="在linux上配置taps">在linux上配置taps</h3>
+<p>在有iproute2和tab/tun支持的linux上,可以像下面这样进行配置,并且假设读者有使用iproute2的经验(起码有ip-addr和ip-link的经验....) 记下主机物理设备的配置,因为bridge将会成为物理设备的新的endpoint.注意,这回导致主机在按个物理设备上的网络go out? 对于远程系统可能会需要重启/</p>
+<pre><code> # modprobe tun tap                  # unnecessary if tun/tap is built-in
+ # ip link add br0 type bridge
+ # ip tuntap add dev tap0 mode tap
+ # ip link set dev tap0 master br0   # set br0 as the target bridge for tap0
+ # ip link set dev eth0 master br0   # set br0 as the target bridge for eth0 ,只有无线网怎么办??
+ # ip link set dev br0 up
+</code></pre>
+<p>在这个时候,网桥就工作了,但是不可用,因为没有ip地址.重新为bridge分配物理设备的地址来使得其可用:</p>
+<pre><code> # ip address delete $PREFIX dev eth0
+ # ip address add $PREFIX dev br0
+ # ip route add default via $ROUTE dev br0
+</code></pre>
+<p>在远端服务器上可以通过shell脚本来完成,在这之后会丢失连接</p>
+<p>注意,新创建的tap设备可能会需要ip link set up,另外,由于网桥是作为一个物理设备的一个新的端点,多数一般的网络明明,比如DHCP或者包嗅探工具, 必须运行在网桥上而不是物理设备.给一个接口创建多个网桥已知(据说)是有问题的,给每一个虚拟器创建一个tap并给每一个使用的物理设备创建一个网桥</p>
+<p>(????????? ,what is tap ???)</p>
+</body>
+</html>

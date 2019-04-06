@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>2019-03-31-vga-crtc</title>
+  <style>
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="./all.css" type="text/css" media="screen" title="no title" charset="utf-8">
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">2019-03-31-vga-crtc</h1>
+</header>
+<h1 id="介绍">介绍</h1>
+<p>这部分介绍VGA的CRTC寄存器的配置,其控制发送到显示设备的视频信号的framing和timing</p>
+<h1 id="dot-clock">Dot Clock</h1>
+<p>标准VGA有两个可以用的"标准"点时钟频率,以及一个可能的"外部"时钟,取决于实现. 这两个标准时钟频率通常是25Mhz和28Mhz.某些芯片组 使用25.000和28.000Mhz,而其他的使用稍微快一点的时钟频率.IBM VGA芯片组使用25.1750Mhz和28.3200Mhz石英钟.某些新的卡使用最接近他们的 时钟芯片的频率. 多数情况IDM VGA及时可以...,但是如果你知道实际的频率,应该在计时计算中使用他们</p>
+<p>VGA硬件中的点时钟源是用过使用<code>clock select</code>域选择的.对于VGA这两个只都是未定义的,某些SVGA芯片组会使用未定义的值来用作132行模式 的时钟频率,诸如此类. 25Mhz时钟是为320和640像素模式设计的,而28Mhz是为360和720像素模式涉及到额.<code>Dot clock rate</code>域制定是直接使用点时钟源 还是在将它用作实际点时钟之前对半分??</p>
+<h1 id="水平timing">水平timing</h1>
+<p>VGA以字符时钟为单位度量水平timing,可能是8或9个点时钟,由<code>9/8 dot mode</code>指定. 9点时钟模式用于monochrome模拟和9点宽字符模式,并且可以用于提供 工作在所有标准VGA上的360和720像素宽模式(和28Mhz点时钟结合). VGA使用使在每个字符增加的水平字符计数,水平timing电路会将其域水平timing域的值进行 比较来控制水平状态, 受控的水平周期有激活显示,overscan,blanking和刷新周期</p>
+<p>有效显示周期的开始和水平字符计数的重置重叠. 因此固定是0(??).水平字符重置时的值有<code>horizontal total</code>控制. 注意,实际编辑进<code>horizontal total</code>域 的值由于timing的问题回避实际值少5</p>
+<p>有效显示周期的结束由<code>End horizontal display</code>控制,当水平字符计数等于这个域的时候,sequencer就开始输出<code>overscan platte index</code>域中制定的颜色值. 这回吃持续到有效显示从下一个扫描line重新开始的时候. 注意,水平blanking优先级比sequencer和属性控制器高</p>
+<p>水平blanking周期在字符时钟等于<code>start horizontal blandking</code>域的时候开始.在blanking期间, DAC向显示器发送信号来关闭guns(电子枪??...). 在一般情况下,这可以便面overscan颜色在水平retrace期间被显示. 这个周期一直持续到<code>end horizontal blanking</code>域低6位匹配水平字符计数的低6位的时候. 使得blanking周期可以出现在1-64字符时钟,xxxx. blanking周期可能会出现在扫描line,有效显示或者xxx的任何一个地方,甚至之外..如果<code>start hotizontal b</code> 域超出了<code>horizontal total</code>决定的字符时钟最大值,第一个<code>end horizontal b</code>的第一个匹配可能会出现在接下里的扫描line上</p>
+<p>类似水平blanking周期,水平retrace周期由<code>srat horizontal retrace</code>和<code>end horizontal retrace</code>指定.水平retrace周期在字符时钟等于<code>start horizontal retrace</code>域 的时候开始.在字符时钟低5位匹配<code>end horizontal retrace</code>的时候结束,,</p>
+<p>还有两个水平timing域,和xx. <code>display enable skew</code>,<code>horizontal retrace skew</code></p>
+<h1 id="垂直timing">垂直timing</h1>
+<p>...(没看)</p>
+<h1 id="显示timing">显示timing</h1>
+<p>有些特定的操作应该在显示的特定周期进行来最小化视觉影响,比如属性和DAC写. 有两个位域返回当前VGA的状态,<code>display display</code>和<code>vertical retrace</code> <code>display disable</code>在没有假设显示开启信号的时候设置为1,提供给编程者判断显示硬件是在刷新有效显示还是在输出blanking</p>
+<p><code>vertival retrace</code>域表明VGA是否处于垂直retrace周期,这在用于判断显示周期的结束的时候很有用,可以用于需要在每个周期都更新的程序中,比如进行动画. 在一般情况下,当blaning信号 is asserted during vertical retrace, 可以用于检查blanking的这个周期,可以执行大量寄存器的写操作,DAC条目的完全刷新</p>
+<h1 id="misc">MISC</h1>
+<p>还有一些影响显示生成的寄存器,但是不好归入水平和垂直timing策略的. 第一个是<code>sync enable</code>,其控制是否允许水平和垂直sync信号发送到显示. Sunc想在 在设置新模式的时候应该关闭来确保会损害显示的不当信号不会被输出. 保持sync关闭一个或者多个帧的时间可以帮助显示判断发生了模式改变</p>
+<p><code>memory refresh bandwidth</code>域用于原始的IBM VGA硬件以及一些兼容的VGA/SVGA芯片组来控制线束内存刷新的频率. 这个域控制VGA每个扫描line是提供 3次还是5次内存刷新. 等于或超过VGA水平刷新速率,</p>
+</body>
+</html>

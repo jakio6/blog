@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>2019-03-31-vga-dac</title>
+  <style>
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="./all.css" type="text/css" media="screen" title="no title" charset="utf-8">
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">2019-03-31-vga-dac</h1>
+</header>
+<h1 id="介绍">介绍</h1>
+<p>VGA相对于EGA的一个提升是可以生成的颜色种类,除了增加了一次可以显示的颜色数量,VGA硬件还提供了从256k的范围选取256色同时显示的能力.</p>
+<p><code>这个能力</code>是由DAC子系统提供的,其接受每个像素的属性信息并且将其转化为VGA显示的模拟信号</p>
+<h1 id="dac子系统">DAC子系统</h1>
+<p>VGA的DAC子系统从arrtibute子系统接收一个8bit的输入,并且输出一个模拟信号给显示电路.内部有256个18bit的内存位置,保存了6gebit的红绿蓝 信号等级,从分别从0-63. DAC硬件从属性子系统获取一个8bit的只并且用它作为这个256个内存位置的索引并且获取红绿蓝traid并且生成需要的输出.</p>
+<p>注意 -- DAC子系统可以以多种方式实现,包括离散的组件,在DAC芯片中内部ram可能有也可能没有,甚至它自己也可能是集成到主芯片组ASIC中的. 许多现代的DAC芯片组包括像硬件光标支持,拓展颜色映射,视频叠加,伽马纠正之类的额外功能.部分是因为很难一般话DAC子系统的具体行为.这个 文档聚焦与所有VGA DAC的通用功能,特定芯片组制定的功能在别处指定.</p>
+<h1 id="dac编程">DAC编程</h1>
+<p>DAC的主主机接口(可能还有别的VGA不兼容的访问方式)是通过一组四个寄存器,<code>DAC write addr</code>,<code>DAC read add</code>,<code>DAC data</code>,和<code>DAC state</code>域 构成.DAC内存是通过写一个index值到<code>DAC write addr</code>域进行写,或者<code>DAC read addr</code>进行读操作. 然后再到<code>DAC data</code>域进行对应的读或写操作. 连续三次,返回三个字节,每一个包含6bit红绿蓝值,顺序是红绿蓝,读写索引然后自动增加,下一个条目不需要写地址就可以进行.通过这种方式, 整个DAC内存可以在768个连续的io操作之内完成读/写.DAC state汇报DAC接下来是配置为读还是写</p>
+<h1 id="编程注意事项">编程注意事项</h1>
+<p>由于不同实现的差异,对DAC的编程需要额外注意来确保....有一些时间可以会导致不想要的效果,但是最简单的避免问题的方法是在你的程序在每次 读写之前都进行地址配置(一次读写可能会包括多个DAC内存条目).总是按照3个颜色值一组进行读写. 否则DAC内存坑呢不会正常更新. 从DAC写地址 读取坑不会导致异常结果,某些实现会返回当前的索引,某些可能会返回下一个.这个操作甚至可能取决于是否正在执行读或写操作.虽然看起来DAC 好像给读和写实现了两个单独的索引,大多数情况下却并不是这样的,交互读写的情况下如果不正确地重设索引可能会导致工作异常</p>
+<ul>
+<li>读操作
+<ul>
+<li>关闭中断</li>
+<li>输出开始DAC内存索引到<code>DAC read address</code></li>
+<li>从<code>DAC data</code>寄存器拉取红绿蓝值,可以重复</li>
+<li>开启中断</li>
+</ul></li>
+<li>写操作
+<ul>
+<li>写操作</li>
+<li>输出开始DAC内存索引到<code>DAC write addres</code></li>
+<li>输出红绿蓝值到DAC数据寄存器,重读想要的次数</li>
+<li>开启终端</li>
+</ul></li>
+</ul>
+<h1 id="消除闪烁">消除闪烁</h1>
+<p>在对DAC内存进行编程的一个重要考虑是对显示生成的可能影响.如果DAC内存会被主在DAC内存被DAC硬件使用的时候被主机CPU访问,生成的显示 输出有可能会有像闪烁或者雪花之类的副作用.注意,读写都有可能会导致这些效果. 实际的效果取决于特定的DAC实现.不幸地是,在副作用产生的 时候是没有办法检测的.最好的措施就是只在水平或者垂直blanking的时候访问DAC内存.但是,这会给芯片组上运行的程序带来不必要的开销. 如果性能很重要的话,就让用户做出选择吧</p>
+<h1 id="dac状态">DAC状态</h1>
+<p>DAC状态域开起来是完全无用的,因为DAC state通常并没有给出足够的信息xxx.但是,我可以想到一个可能的用处.可以使用DAC state来允许中断驱动的例程 来访问palette(就像xxx). 而仍旧允许主线程写DAC内存.当终端例程执行的时候,应该要检查DAC状态,如果DAC是处于写状态,它就不应该访问DAC内存. 如果是读状态,例程应该检查必要的DAC访问然后讲DAC归为到读状态. 这意味着,使用主线程使用DAC状态来控制ISR的执行.... 也意味着可以写DAC而不用关闭终端或者禁用ISR..</p>
+</body>
+</html>
