@@ -1,25 +1,3 @@
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
-<head>
-  <meta charset="utf-8" />
-  <meta name="generator" content="pandoc" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>2019-04-03-multiboot-boot-info</title>
-  <style>
-      code{white-space: pre-wrap;}
-      span.smallcaps{font-variant: small-caps;}
-      span.underline{text-decoration: underline;}
-      div.column{display: inline-block; vertical-align: top; width: 50%;}
-  </style>
-  <!--[if lt IE 9]>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
-  <![endif]-->
-  <link rel="stylesheet" href="./all.css" type="text/css" media="screen" title="no title" charset="utf-8">
-</head>
-<body>
-<header id="title-block-header">
-<h1 class="title">2019-04-03-multiboot-boot-info</h1>
-</header>
 <h1 id="引导信息">引导信息</h1>
 <h2 id="引导信息格式">引导信息格式</h2>
 <p>在进入操作系统之后,EBX寄存器会包含一个Multiboot2信息数据结构的物理地址,bootloader通过其向bootloader传递必要信息. 操作系统可以选择使用或者忽略其中的任意信息,bootloader传递的信息都是建议性的</p>
@@ -31,5 +9,3 @@
      u32     | reserved          |
              +-------------------+
 </code></pre>
-</body>
-</html>

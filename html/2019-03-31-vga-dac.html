@@ -1,25 +1,3 @@
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
-<head>
-  <meta charset="utf-8" />
-  <meta name="generator" content="pandoc" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>2019-03-31-vga-dac</title>
-  <style>
-      code{white-space: pre-wrap;}
-      span.smallcaps{font-variant: small-caps;}
-      span.underline{text-decoration: underline;}
-      div.column{display: inline-block; vertical-align: top; width: 50%;}
-  </style>
-  <!--[if lt IE 9]>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
-  <![endif]-->
-  <link rel="stylesheet" href="./all.css" type="text/css" media="screen" title="no title" charset="utf-8">
-</head>
-<body>
-<header id="title-block-header">
-<h1 class="title">2019-03-31-vga-dac</h1>
-</header>
 <h1 id="介绍">介绍</h1>
 <p>VGA相对于EGA的一个提升是可以生成的颜色种类,除了增加了一次可以显示的颜色数量,VGA硬件还提供了从256k的范围选取256色同时显示的能力.</p>
 <p><code>这个能力</code>是由DAC子系统提供的,其接受每个像素的属性信息并且将其转化为VGA显示的模拟信号</p>
@@ -50,5 +28,3 @@
 <p>在对DAC内存进行编程的一个重要考虑是对显示生成的可能影响.如果DAC内存会被主在DAC内存被DAC硬件使用的时候被主机CPU访问,生成的显示 输出有可能会有像闪烁或者雪花之类的副作用.注意,读写都有可能会导致这些效果. 实际的效果取决于特定的DAC实现.不幸地是,在副作用产生的 时候是没有办法检测的.最好的措施就是只在水平或者垂直blanking的时候访问DAC内存.但是,这会给芯片组上运行的程序带来不必要的开销. 如果性能很重要的话,就让用户做出选择吧</p>
 <h1 id="dac状态">DAC状态</h1>
 <p>DAC状态域开起来是完全无用的,因为DAC state通常并没有给出足够的信息xxx.但是,我可以想到一个可能的用处.可以使用DAC state来允许中断驱动的例程 来访问palette(就像xxx). 而仍旧允许主线程写DAC内存.当终端例程执行的时候,应该要检查DAC状态,如果DAC是处于写状态,它就不应该访问DAC内存. 如果是读状态,例程应该检查必要的DAC访问然后讲DAC归为到读状态. 这意味着,使用主线程使用DAC状态来控制ISR的执行.... 也意味着可以写DAC而不用关闭终端或者禁用ISR..</p>
-</body>
-</html>

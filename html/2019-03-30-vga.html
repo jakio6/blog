@@ -1,25 +1,3 @@
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
-<head>
-  <meta charset="utf-8" />
-  <meta name="generator" content="pandoc" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>2019-03-30-vga</title>
-  <style>
-      code{white-space: pre-wrap;}
-      span.smallcaps{font-variant: small-caps;}
-      span.underline{text-decoration: underline;}
-      div.column{display: inline-block; vertical-align: top; width: 50%;}
-  </style>
-  <!--[if lt IE 9]>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
-  <![endif]-->
-  <link rel="stylesheet" href="./all.css" type="text/css" media="screen" title="no title" charset="utf-8">
-</head>
-<body>
-<header id="title-block-header">
-<h1 class="title">2019-03-30-vga</h1>
-</header>
 <h1 id="介绍">介绍</h1>
 <p>标准VGA硬件包含最多256K的板上内存.看起来似乎这个内存处理器是可以直接访问的,但实际上并不是这样.主机CPU是通过 位于高位内存中的最多128K内存的窗口来访问现存的.(许多SVGA芯片组提供了额外的直接访问显存的方式,叫做linear frame buffer). 一个词,要访问显示内存,就必须要处理控制到主机地址空间映射的寄存器.更复杂的,VGA硬件提供了类似monochrome,xxx,xx使用的内存模型. 除此之外,由于VGA处理16色模式的方式,还包括额外的硬件来加速访问. 同样,还有为编程者提供快速将数据从显存中的一个区域移动到另一个区域的 能力的硬件. 虽然说非常难理解,但是如果能够了解如何以底层的方式使用VGA,将能极大地提高性能.许多游戏制作人员都使用BIOS模式13h, 因为它提供了简单内存模型,不用处理VGA的寄存器就可以绘制像素.但是,这也限制了他们使用infamous X模式,或者更高分辨率模式的能力.</p>
 <h1 id="检测适配器中的显存容量">检测适配器中的显存容量</h1>
@@ -76,5 +54,4 @@
 </ul>
 <p>在写的颜色相当稳定而<code>bit mask</code>需要经常改变的时候使用,比如,绘制单个色彩行或文本.<code>set/reset</code>域中的只会想<code>enable set/reset</code>域设置为0xf一样地展开, 不计其实际值.主机数据会先经<code>rotate count</code>,然后和<code>bit mask</code>与.结果用于<code>bit mask</code>常用的位置,从展开只或锁存器中选择数据.最后,结果数据写到 <code>mem plane write enable</code>中开启的显示区域</p>
 <!-- so,that's all? -->
-</body>
-</html>
+

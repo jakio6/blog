@@ -1,25 +1,3 @@
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
-<head>
-  <meta charset="utf-8" />
-  <meta name="generator" content="pandoc" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>2019-03-31-vga-crtc</title>
-  <style>
-      code{white-space: pre-wrap;}
-      span.smallcaps{font-variant: small-caps;}
-      span.underline{text-decoration: underline;}
-      div.column{display: inline-block; vertical-align: top; width: 50%;}
-  </style>
-  <!--[if lt IE 9]>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
-  <![endif]-->
-  <link rel="stylesheet" href="./all.css" type="text/css" media="screen" title="no title" charset="utf-8">
-</head>
-<body>
-<header id="title-block-header">
-<h1 class="title">2019-03-31-vga-crtc</h1>
-</header>
 <h1 id="介绍">介绍</h1>
 <p>这部分介绍VGA的CRTC寄存器的配置,其控制发送到显示设备的视频信号的framing和timing</p>
 <h1 id="dot-clock">Dot Clock</h1>
@@ -40,5 +18,3 @@
 <h1 id="misc">MISC</h1>
 <p>还有一些影响显示生成的寄存器,但是不好归入水平和垂直timing策略的. 第一个是<code>sync enable</code>,其控制是否允许水平和垂直sync信号发送到显示. Sunc想在 在设置新模式的时候应该关闭来确保会损害显示的不当信号不会被输出. 保持sync关闭一个或者多个帧的时间可以帮助显示判断发生了模式改变</p>
 <p><code>memory refresh bandwidth</code>域用于原始的IBM VGA硬件以及一些兼容的VGA/SVGA芯片组来控制线束内存刷新的频率. 这个域控制VGA每个扫描line是提供 3次还是5次内存刷新. 等于或超过VGA水平刷新速率,</p>
-</body>
-</html>

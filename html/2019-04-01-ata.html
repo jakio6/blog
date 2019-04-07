@@ -1,25 +1,3 @@
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
-<head>
-  <meta charset="utf-8" />
-  <meta name="generator" content="pandoc" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>2019-04-01-ata</title>
-  <style>
-      code{white-space: pre-wrap;}
-      span.smallcaps{font-variant: small-caps;}
-      span.underline{text-decoration: underline;}
-      div.column{display: inline-block; vertical-align: top; width: 50%;}
-  </style>
-  <!--[if lt IE 9]>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
-  <![endif]-->
-  <link rel="stylesheet" href="./all.css" type="text/css" media="screen" title="no title" charset="utf-8">
-</head>
-<body>
-<header id="title-block-header">
-<h1 class="title">2019-04-01-ata</h1>
-</header>
 <h1 id="ata-pio-mode">ATA PIO MODE</h1>
 <p>根据ATA规范, 所有ATA兼容的驱动都必须支持PIO模式作为默认的数据传输机制</p>
 <p>PIO模式会使用非常多的系统资源,因为在磁盘和CPU间传输的每一个字节都必须通过CPU的IO端口发送.在某些CPU中,PIO模式仍然 可以获得16MB每秒的速度,但是这是在其他进程无法获得任何CPU时间的基础上</p>
@@ -73,5 +51,3 @@
 <h1 id="寄存器">寄存器</h1>
 <p>ATA总线通常有10个控制其行为的端口.主总线上..某些系统有非标准的ATA总线端口位置,这个时候需要访问PCI部分来判断如何提取系统中 不同的设备端口地址了</p>
 <p>这些表中....</p>
-</body>
-</html>
