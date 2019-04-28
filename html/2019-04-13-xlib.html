@@ -1,0 +1,421 @@
+<h1 id="xlib介绍">Xlib介绍</h1>
+<p>X窗口系统是一个网络透明的窗口系统,于MIT设计.X 显示服务器运行在具有单色或者多色显示的的硬件之上,服务器分发用户处理,接收用户请求.. Xlib应用程序(client)用于通过流式连接与窗口系统交互的C子例程库. 客户端通常运行子运行在X服务器交互的机器之上</p>
+<p>Xlib -- C Language X Interface 是X窗口系统协议的C语言底层接口的指导. 既不是教程也不是X窗口编程用户指导书..其对库中的所有函数提供了 详细的介绍,以及相关的背景信息的讨论...</p>
+<p>Xlib -- C Language X Interface 会假定读者具有一定的图形窗口系统和C语言理解. 其他高层抽象构建在Xlib之上... 要了解这些高层抽象请看对应的文档..</p>
+<h2 id="x窗口系统概览">X窗口系统概览</h2>
+<p>这本书中用到的一些术语是X专有的, 一些其他窗口系统通用的术语在X中有不同意义.</p>
+<p>X窗口系统支持一个或者多个包含叠加窗口或者子窗口的screen, screen是一个物理显示器或者硬件,可能是彩色的,灰度的或者单色的. 每个显示或者工作站可能会有多个screen. 单个X服务器可以为任意数量的screen提供显示服务.单个用户的一组屏幕加上一个键盘和一个指针就叫做一个display</p>
+<p>X服务器中的所有window都严格按照层级来分. 在每个层级的顶部是一个root窗口, 覆盖每个display screen. 每个root window都是部分或者完全被子window覆盖. 除了root window之外的所有window都有父窗口. 通常每个程序都至少有一个窗口. 子窗口可以拥有其自己的子窗口. 这种角度来说, 一个程序可以在每个screen上创建任意深度的tree. X为window提供图形,文本和光栅操作</p>
+<p>子窗口可以比父窗口大. 就是说,部分或者全部子窗口可以超过父窗口的界限 ,但是所有到窗口的所有输出都会被其父窗口捕获. 如果部分子窗口有叠加的位置., 其中的一个子窗口被认为是处于其他子窗口智商,从而阻挡了他们.输出到其 它窗口覆盖的位置的输出被窗口系统抑制,除非窗口有后台存储. 如果一个 窗口被另一个窗口阻挡, 阻挡的窗口值阻挡其自身上级 ?? 也是第一个窗口的上级??</p>
+<p>window有一个border,宽度可以是0或者更高像素..可以是你想要的任意pattern或者solid颜色, 窗口通常但是不总是有背景pattern, 在没有覆盖的时候会 被窗口系统重绘. 子窗口会阻挡其父窗口,在父窗口进行的图形操作通常 会被子窗口捕获</p>
+<p>每个窗口有和pixmap都有其自己的坐标系统. 坐标系统的0点位于左上角. 坐标是整数,以pixel为单位,和pixel中心重合. 对于窗口,起始位置是处于 左上角的border之中??</p>
+<p>X不保证保留窗口的内容. 当一个窗口部分或者全部,隐藏然后返回屏幕, 它的内容可能会丢失. 服务器会给client程序发送一个Expose时间来通知它 部分或者全部窗口需要重绘. 程序必须做好在必要的重新生成窗口内容的准备</p>
+<p>X 还提供了图形对象的off-screen存储,叫做pixmaps.单plane(深度1)pixmap 被叫做bitmap.pixmap可以用于多数与window交互的图形函数. window和 pixmap统称为可绘制对象..</p>
+<p>Xlib中的多数函数只是添加一个请求到输出buffer.这些请求之后会在X服务器之上异步执行. 保存在服务器中的返回值的函数在收到明确回复或者发生 错误之前不会返回(阻塞)</p>
+<p>如果客户端不想要请求已异步执行,它可以在请求之后调用Xsync(), 其会 阻塞直到前面的请求都已经发送并且执行了. 还有一个很重要的副作用,Xlib 中的输出buffer在调用任何返回值或者接收输入的函数时候都会刷新.</p>
+<p>许多Xlib函数会返回一个整数资源ID,允许你引用存储在X服务器之上的对象. 包括window,font,pixmap,colormap,cursor,GContex,都在X11/x.h中定义. 这些资源都通过请求创建,通过请求销毁. 多数资源都是在应用间共享的, 实际上,窗口是由窗口管理程序显示操作的?? 字体和光标是自动在多screen 之间共享. 字体在需要时加载卸载, 并且被多个client共享.字体通常是缓存 在服务器之中的. Xlib不提供程序间共享图形上下文的支持</p>
+<p>客户端程序会被通知事件的到来. 事件可能是一个请求的副作用或者异步 事件的完成. 客户端程序请求对事件的通知. 因为其他程序可以向你的程序 发送事件, 程序必须准备好处理(或者忽略)所有类型的事件</p>
+<p>从服务器异步到达的输入时间会进入队列,知道他们被明确地请求.除此之外, 某些库函数会生成Expose和ConfigureRequest事件. 这些事件同样会异步到达 但是client在调用会导致服务器生成事件的函数之后可能会想要调用XSync() 来等待它们</p>
+<h2 id="错误">错误</h2>
+<p>某些函数会返回状态,一个表明错误的整数. 如果函数失败,返回0, 如果函数 返回0状态,就它就没有更新返回参数,(许多函数可能会通过写客户端传递的 存储空间来返回其结果.(这里打个括号好像更好理解)) 默认情况下, 错误 是通过标准库函数或者你提供的函数来处理的. 返回指针的函数在字符串 并不存在的时候返回NULL</p>
+<p>X服务器会在检测到协议错误的时候汇报, 如果一个请求可能会产生多种错误, 服务器可能会汇报其中的任意一个..</p>
+<p>由于Xlib通常不会立即传输请求到服务器, 错误可能会在其发生一段时间后 才被处理. 出于调试意图,Xlib提供了一个强制同步行为的机制. 当开启同步 的时候,错误会在他们产生的时候就汇报</p>
+<p>当Xlib检测到错误的时候, 它可以调用一个错误处理程序, 你的程序可以提供这个. 如果你没有提供错误处理程序,错误就会打印出来,并且你的程序会结束</p>
+<h2 id="标准头文件">标准头文件</h2>
+<p>下面头文件是Xlib标准中的一部分:</p>
+<ul>
+<li><code>X11/Xlib.h</code> : xlib主要的头文件. 大部分xlib符号都有这个文件定义. 这个文件还包含预处理符号<code>XlibSpecificationRelease</code>.这个符号...</li>
+<li><code>X11/X.h</code> : 这个文件声明了供程序使用的X协议的类型和常量. Xlib.h会 自动包含这个头文件, 因此程序永远不需要直接引用这个头文件</li>
+<li><code>X11/Xcms.h</code> : 包含许多颜色管理工具的symbol. 所有的前缀'Xcms'的 函数,类型,symbol, 加上颜色转换上下文宏, 都是定义在这个文件.在引用这 文件之前必须引用Xlib.h ??</li>
+<li><code>X11/Xutil.h</code> : 声明了多种用于客户端间通信的函数,类型,symbol,以及 程序工具函数. 必须先引用Xlib.h</li>
+<li><code>X11/Xresource.h</code> : 资源管理工具的函数,类型,symbol声明,必须先..</li>
+<li><code>X11/Xatom.h</code> : 声明了所有预定义的atoms, 就是前缀<code>XA_</code>的</li>
+<li><code>X11/cursorfont.h</code> : 标准光标符号的光标字体..<code>XC_</code></li>
+<li><code>X11/keysymdef.h</code> : 标准KeySym值, 前缀<code>XK_</code></li>
+<li><code>X11/keysym.h</code> : 定义预处理符号xxx,然后include上面那个</li>
+<li><code>X11/Xlibint.h</code> : 拓展通的函数类型符号...自动包含Xlib.h</li>
+<li><code>X11/Xproto.h</code> : 基本X协议的类型的符号, 用于实现拓展.被上面包含</li>
+<li><code>X11/X10.h</code> : X10兼容函数用的...</li>
+</ul>
+<h2 id="通用值和类型">通用值和类型</h2>
+<p>下面的符号有Xlib定义,整个手册中都有使用 :</p>
+<ul>
+<li>Bool类型和True,False布尔值</li>
+<li>None表示空资源id或者atom</li>
+<li>类型XID用于通用资源ID</li>
+<li>XPinter类型定义为<code>char *</code>, 用作通用的不透明数据指针</li>
+</ul>
+<h2 id="命名和参数规范">命名和参数规范</h2>
+<p>Xlib遵循一些命名和函数语法规范.如果你记住了函数需要什么信息, 这些 管理会是你更容易构建出函数的语法</p>
+<p>主要的命名规范是:</p>
+<ul>
+<li>要区分X符号和其他的符号, 库使用了混合大小写的外部函数</li>
+<li>所有库函数以大写X开头</li>
+<li>所有函数名和符号首字母大小</li>
+<li>所有用户可见数据结构由大写X开始.或者说,所有用户核能引用的都是</li>
+<li>宏和其他符号不以大写X开始.为了与用户符号区分,宏中所有单词都首字母 大写</li>
+<li>数据结构中的成员都是小写. 复合单词会由下划线构造</li>
+<li>display参数用到的时候总是参数列表中的第一个</li>
+<li>resource对象用到的时候出现在参数列表中display之后</li>
+<li>当图形上下文和任何其他类型的资源一起给出的时候(通常是可绘制对象, 图形上下文出现在其他资源之后.可绘制对象级别高于其他资源</li>
+<li>Source参数总是先于destination参数</li>
+<li>x参数总是先于y参数</li>
+<li>width总是先于height参数</li>
+<li>x,y,width,height参数一起使用的时候,x和y参数总是先于width和height</li>
+<li>在掩码同结构一起出现的时候,掩码总是先于结构体指针</li>
+</ul>
+<h2 id="程序设计考虑">程序设计考虑</h2>
+<p>主要的程序设计考虑有:</p>
+<ul>
+<li>坐标和size都是16bit数. 在接口中坐标通常是声明为int.大于16bit的值 会自动阶段.size都声明为无符号数</li>
+<li>键盘是不同工作站之间最大的变数. 如果想要程序可抑制,使用这里的规范</li>
+<li>许多显示系统的off-screen内存都是有限的. 如果可以,应该最小化pixmap 和后台存错的使用</li>
+<li>用户应该有对其屏幕空间的控制,因此, 你应该让你的程序响应窗口管理而 不是垄断整个屏幕的控制.但是你在你的顶层window之中所做的取决与你的 程序.</li>
+</ul>
+<h2 id="字符集和编码">字符集和编码</h2>
+<p>一些Xlib函数创建特定字符集和字符编码的引用.下面的是最常见的:</p>
+<ul>
+<li>X可移植字符集...</li>
+<li>主机可移植字符集</li>
+<li>...</li>
+</ul>
+<h2 id="格式化管理">格式化管理</h2>
+<p>Xlib - C Languange X Interface使用以下约定:</p>
+<ul>
+<li>全局符号以<strong>粗体</strong>,或者超链接或者两者都是. 函数名以粗体打印,接() 以及到其定义页的超链接.引用文件中定义的符号以粗体呈现. 结构体名以 常规文本打印,并且链接到其定义. 当声明和定义的时候,函数参数以粗体 打印,其后接介绍文本</li>
+<li>每个函数都由起个一般讨论来引入. 之后是函数声明,每个参数都专门解释 虽然没有使用ANSI C函数原型语法, Xlib头文件声明在ANSI C环境中通常都 是用得ansi C语法. 通常对函数的一般讨论都跟有函数参数..</li>
+<li>为了减少你传递给函数的函数和函数返回给你的参数之间的歧义, 你传递 的参数都以specifies或者specify开始. 返回给你的参数的届时有return开始..</li>
+<li>所有用于返回值的结构体的指针名称都以带有<code>_return</code>后缀. 其他的指针 都是只读的.少数参数使用读写的指针,这些使用<code>_in_out</code>后缀标注</li>
+</ul>
+<h1 id="显示函数">显示函数</h1>
+<p>在程序使用显示之前,必须与X服务器建立连接.在连接建立之后,你就可以 使用这里介绍的Xlib宏和函数来返回显示信息. 这个章节主要介绍如何:</p>
+<ul>
+<li>打开(连接到) display</li>
+<li>获取display,图像格式,screen的信息</li>
+<li>释放客户端创建的数据</li>
+<li>关闭(断开)显示</li>
+</ul>
+<p>这个章节最后会有对与X服务器连接关闭之后的事件的一般讨论</p>
+<h2 id="打开显示">打开显示:</h2>
+<p>使用 XOpenDisplay() 来创建一个控制一个display的与X服务器的连接</p>
+<p>语法:</p>
+<pre><code>Display *XOpenDisplay(display_name)
+      char *display_name;
+</code></pre>
+<p>参数:</p>
+<ul>
+<li><code>display_name</code> : 指定硬件display名称,其决定了display和使用的通信 方式. 在符合POSIX规范的系统中,如果为NULL,默认使用DISPLAY环境变量</li>
+</ul>
+<p>描述:</p>
+<p>display的编码和届时是实现定义的. xxx xxx. 在兼容POSIX的系统中, DISPLAY环境变量名是如下形式的字符串:</p>
+<pre><code>hostname:number.screen_number
+</code></pre>
+<ul>
+<li><code>hostname</code> : 指定显示器物理附加的主机的名称..</li>
+<li><code>number</code> : 制定display server在主机上的编号..</li>
+<li><code>screen_number</code> : 制定在那个服务器上使用的screen...</li>
+</ul>
+<p>比如,下面的这个指定在叫做<code>dual-headed</code>的机器上display0的screen1:</p>
+<pre><code>dual-headed:0.1
+</code></pre>
+<p>函数会返回一个Display结构.其包含x服务器器的所有信息. ...</p>
+<h2 id="获取显示图像格式屏幕的信息">获取显示,图像格式,屏幕的信息</h2>
+<p>Xlib提供了一些宏和对应的函数来从Display获取数据. 宏用于C编程,他们的 函数等价用于其他语言绑定. 这一节讨论:</p>
+<ul>
+<li>display 宏</li>
+<li>image format宏</li>
+<li>screen 宏</li>
+</ul>
+<p>Display的其他成员是Xlib私有的.不应该使用.程序不应该直接修改Display 结构的成员</p>
+<h3 id="display宏">display宏</h3>
+<h4 id="allplanes">AllPlanes</h4>
+<ul>
+<li>ALLPlanes</li>
+<li>unsigned long XAllPlanes()</li>
+</ul>
+<p>这两个都返回一个所有位都为1的适用于在一个过程中的plane参数使用的值</p>
+<h4 id="blackpixelwhitepixel">BlackPixel,WhitePixel</h4>
+<p>都可以用于实现单色程序,这些pixel值是默认colormap中永久分配的条目.在某些screen中的RGB是可设置的,任何情况下都不会是真的是黑或白.这些名称旨在草拟吗</p>
+<p><code>BlackPixel(display,screen_number)</code></p>
+<pre><code>unsigned long XBlackPixel(display, screen_number)
+      Display *display;
+      int screen_number;
+</code></pre>
+<ul>
+<li><code>display</code>指定与X服务器的连接</li>
+<li><code>screen_number</code>指定主机服务器上恰当的screen</li>
+</ul>
+<p>都返回指定screen的黑色像素值</p>
+<p>WhitePixek..</p>
+<h4 id="connectionnumber">ConnectionNumber</h4>
+<p>ConnectionNumber(display) ..</p>
+<p>返回指定display的连接号(int)</p>
+<h4 id="defaultcolormap">DefaultColormap</h4>
+<p>DefaultColormap(display,screennumber) ..</p>
+<p>返回指定screen中分配的默认的colormapID</p>
+<h4 id="defaultdepth">DefaultDepth</h4>
+<p>DefaultDepth(display ,screennumber)</p>
+<p>返回depth(plane的数量)of指定window的默认root window</p>
+<h4 id="xlistdepths">XListDepths</h4>
+<pre><code>int *XListDepths(display, screen_number, count_return)
+      Display *display;
+      int screen_number;
+      int *count_return;
+</code></pre>
+<p>返回制定屏幕上可用的depth的数组</p>
+<h4 id="defaultgc">DefaultGC</h4>
+<pre><code>GC XDefaultGC(display, screen_number)
+      Display *display;
+      int screen_number;
+</code></pre>
+<p>返回指定screen的root win的默认图形上下文,,,</p>
+<h4 id="defaultrootwindow">DefaultRootWindow</h4>
+<pre><code>Window XDefaultRootWindow(display)
+      Display *display;
+</code></pre>
+<p>返回默认screen的root window</p>
+<h4 id="defaultscreenofdisplay">DefaultScreenOfDisplay</h4>
+<pre><code>Screen *XDefaultScreenOfDisplay(display)
+      Display *display;
+</code></pre>
+<h4 id="screensofdisplay">ScreensOfDisplay</h4>
+<pre><code>Screen *XScreenOfDisplay(display, screen_number)
+      Display *display;
+      int screen_number;
+</code></pre>
+<p>返回给定的screen的指针</p>
+<h4 id="defaultscreen">DefaultScreen</h4>
+<pre><code>int XDefaultScreen(display)
+      Display *display;
+</code></pre>
+<p>返回XOpenDisplay使用的默认screen number</p>
+<h4 id="defaultvisual">DefaultVisual</h4>
+<pre><code>Visual *XDefaultVisual(display, screen_number)
+      Display *display;
+      int screen_number;
+</code></pre>
+<p>返回指定的screen的默认visual类型</p>
+<h4 id="displaycells">DisplayCells</h4>
+<pre><code>int XDisplayCells(display, screen_number)
+      Display *display;
+      int screen_number;
+</code></pre>
+<p>返回默认colormap中条目的数量</p>
+<h4 id="displayplanes">DisplayPlanes</h4>
+<pre><code>int XDisplayPlanes(display, screen_number)
+      Display *display;
+      int screen_number;
+</code></pre>
+<p>返回制定screen的root window的depth..</p>
+<h4 id="displaystring">DisplayString</h4>
+<pre><code>char *XDisplayString(display)
+      Display *display;
+</code></pre>
+<p>返回传递给XOpenDisplay()的字符串...</p>
+<h4 id="xentendedmaxrequestsize">XEntendedMaxRequestSize</h4>
+<pre><code>long XExtendedMaxRequestSize(display)
+    Display *display;
+</code></pre>
+<p>...</p>
+<h4 id="xmaxrequestsize">XMaxRequestSize</h4>
+<pre><code>long XMaxRequestSize(display)
+    Display *display;
+</code></pre>
+<p>返回最大的请求大小(4字节为单位)</p>
+<h4 id="lastknownrequestprocessed">LastKnownRequestProcessed</h4>
+<pre><code>unsigned long XLastKnownRequestProcessed(display)
+     Display *display;
+</code></pre>
+<p>...</p>
+<h4 id="nextrequest">NextRequest</h4>
+<pre><code>unsigned long XNextRequest(display)
+     Display *display;
+</code></pre>
+<p>返回用于下一个请求的完整编号,每个display的编号都是独立维护的</p>
+<h4 id="protocolversion">ProtocolVersion</h4>
+<pre><code>int XProtocolVersion(display)
+      Display *display;
+</code></pre>
+<p>返回主要的版本号..</p>
+<h4 id="protocolrevision">ProtocolREvision</h4>
+<pre><code>int XProtocolRevision(display)
+      Display *display;
+
+</code></pre>
+<p>次版本号</p>
+<h4 id="qlength">QLength</h4>
+<pre><code>int XQLength(display)
+      Display *display;
+</code></pre>
+<p>返回连接的display的事件队列的事件长度..</p>
+<h4 id="rootwindow">RootWindow</h4>
+<pre><code>Window XRootWindow(display, screen_number)
+      Display *display;
+      int screen_number;
+</code></pre>
+<p>返回root window..</p>
+<h4 id="screencount">ScreenCount</h4>
+<pre><code>int XScreenCount(display)
+      Display *display;
+</code></pre>
+<p>返回可用screen的数量</p>
+<h4 id="servervendor">ServerVendor</h4>
+<pre><code>char *XServerVendor(display)
+      Display *display;
+</code></pre>
+<p>返回字符串指针....</p>
+<h4 id="vendowrelease">VendowRelease</h4>
+<pre><code>int XVendorRelease(display)
+      Display *display;
+</code></pre>
+<p>返回..</p>
+<h3 id="图像格式函数和宏">图像格式函数和宏</h3>
+<p>(好像比较少,忍一忍)</p>
+<p>应用程序需要以服务器要求的格式像x服务器提供数据. 为了简化程序,多数 需要的转化数据的工作由Xlib提供</p>
+<p>XPixmapFormatValues结构提供了pixmap格式信息的接口..包含:</p>
+<pre><code>typedef struct {
+    int depth;
+    int bits_per_pixel;
+    int scanline_pad;
+} XPixmapFormatValues;
+</code></pre>
+<h4 id="xlistpixmapformats">XListPixmapFormats</h4>
+<p>获取给定display的pixmap信息</p>
+<pre><code>XPixmapFormatValues *XListPixmapFormats(display, count_return)
+      Display *display;
+      int *count_return;
+
+</code></pre>
+<h4 id="imagebyteorder">ImageByteOrder</h4>
+<pre><code>int XImageByteOrder(display)
+      Display *display;
+</code></pre>
+<p>??</p>
+<h4 id="bitmapunit">BitmapUnit</h4>
+<pre><code>int XBitmapUnit(display)
+      Display *display;
+</code></pre>
+<p>返回一个bitmap的scanline单元,按bit</p>
+<h4 id="bitmapbitorder">BitmapBitOrder</h4>
+<pre><code>int XBitmapBitOrder(display)
+      Display *display;
+</code></pre>
+<p>在每个bitmap单元中,xxx</p>
+<h4 id="bitmappad">BitmapPad</h4>
+<pre><code>int XBitmapPad(display)
+      Display *display;
+</code></pre>
+<h4 id="displayheight">DisplayHeight</h4>
+<pre><code>int XDisplayHeight(display, screen_number)
+      Display *display;
+      int screen_number;
+</code></pre>
+<h4 id="displayheightmm">DisplayHeightMM</h4>
+<pre><code>int XDisplayHeightMM(display, screen_number)
+      Display *display;
+      int screen_number;
+</code></pre>
+<h4 id="displaywidth">DisplayWidth</h4>
+<pre><code>int XDisplayWidth(display, screen_number)
+      Display *display;
+      int screen_number;
+</code></pre>
+<p>返回screen pixel宽度</p>
+<h4 id="displaywidthmm">DisplayWidthMM</h4>
+<pre><code>int XDisplayWidthMM(display, screen_number)
+      Display *display;
+      int screen_number;
+</code></pre>
+<p>返回毫米为单位的宽度</p>
+<h3 id="screen信息宏">screen信息宏</h3>
+<h4 id="blackpixelofscreen">BlackPixelOfScreen</h4>
+<pre><code>unsigned long XBlackPixelOfScreen(screen)
+      Screen *screen;
+</code></pre>
+<h4 id="whitepixelofscreen">WhitePixelOfScreen</h4>
+<pre><code>unsigned long XWhitePixelOfScreen(screen)
+      Screen *screen;
+</code></pre>
+<p>这黑白好像是其他的色的参照</p>
+<p>..太麻烦了,不管了</p>
+<ul>
+<li>Cells</li>
+<li>DefaultColormap</li>
+<li>DefaultDepth</li>
+<li>DefaultGC</li>
+<li>DefaultVisual</li>
+<li>DoesBackingStore (full)</li>
+<li>DoesSaveUnders (full)</li>
+<li>Display</li>
+<li>ScreenNumber</li>
+<li>EventMask</li>
+<li>Width</li>
+<li>Height</li>
+<li>WidthMM</li>
+<li>HeightMM</li>
+<li>MaxCmaps</li>
+<li>MinCmaps</li>
+<li>Planes</li>
+<li>RootWindow</li>
+</ul>
+<p>(OfScreen)</p>
+<h2 id="生成一个无操作协议请求">生成一个无操作协议请求</h2>
+<p>使用XNoOp() 来进行无操作协议请求..</p>
+<pre><code>XNoOp(display)
+      Display *display;
+</code></pre>
+<p>发送无操作协议请求,活跃连接??</p>
+<h2 id="释放客户端创建的数据">释放客户端创建的数据</h2>
+<p>使用XFree() 来释放Xlib函数创建中的内存数据</p>
+<pre><code>XFree(data)
+     void *data; 
+</code></pre>
+<h2 id="关闭显示">关闭显示</h2>
+<p>使用XCloseDisplay() 来关闭display或者从X服务器断开连接</p>
+<h2 id="x服务器连接关闭操作">X服务器连接关闭操作</h2>
+<p>X服务器和客户端的连接断开之后X服务器会执行下列操作:</p>
+<ul>
+<li>disown client own的所有选择</li>
+<li>执行XUngrabPointer()和XUngrabKeyboard() (grab了的话)</li>
+<li>执行XUngrabServer() (if only)</li>
+<li>s释放client所有被动grab</li>
+<li>讲client分配所有资源标记为永久的或者临时的..取决于xxx</li>
+</ul>
+<p>在close-down模式是DestoryAll的时候,会xx: xxx</p>
+<h2 id="线程">线程</h2>
+<p>在支持线程的系统中,,</p>
+<p>初始化线程支持: XInitThreads()</p>
+<p>锁定显示: XLockDisplay()</p>
+<p>unlock显示: XUnlockDisplay()</p>
+<h2 id="内部连接">内部连接</h2>
+<p>xxConnectionxx.</p>
+<h1 id="window函数">window函数</h1>
+<p>在X窗口系统中,window屏幕上的一个矩形区域. 客户端程序可以显示叠加 或者嵌套的window on one or more screen xxxx</p>
+<p>创建window必须先连接到x server, by calling XOpenDisplay()..</p>
+<h2 id="visial-类型">visial 类型</h2>
+<p>在某些显示硬件上,可以以多种方式处理色彩资源. 比如,可以以12bit深度, 任意pixel到color(伪色)的映射来处理屏幕或者24bit深度,8bit用于红绿蓝 .不同的处理屏幕的可是部分的方式叫做visuals. 对于display的每一个 screen,都可能有一系列可用的visual类型. 因为每个screen都有默认的 window和visual类型, 多数简单的程序不需要处理这个东西. Xlib提供了 切回默认root window,默认root widow的默认depth,以及默认的depth的宏 和函数</p>
+<p>Xlib使用一个不透明的visual的结构体包村村可能的colr mapping信息. visual工具函数使用XVisualInfo结构体来讲这个信息返回给程序..... 和这个讨论有关的成员是<code>class</code>,<code>red_mask</code>,... class 成员指定了screen的一个可能的visual 类,可能是: StaticGray, StaticColor,TrueColor,GrayScale,PseudoColor,DirectColor</p>
+<p>下面的概念可能会使visual类型的解释更加清晰. screen可以是彩色的或者 灰阶的,可以有一个可写或者只读的colormap,还可以有一个索引分解到 单独的RGB成分的colormap, 假设不是灰阶screen的话??:</p>
+<p>概念上,在每个pixel从显示内存中读出来显示到屏幕上的时候,会经过一个 在colormap中的索引阶段.colormap在某些硬件上可以任意操作, 其他某些 硬件上可能是受限的,还有一些完全不支持的. visual类型你个通过以下 方式影响colormap和RGB值:</p>
+<ul>
+<li>对于PesudoColor,pixel在一个colormap中索引得到的一个独立的RGB值, 并且RGB值可以动态改变</li>
+<li>灰阶处理方式和PseudoColor差不多一样,除了驱动的screen的primary是 未定义的...因此,,client总是应该在colormap中保存相同的rgb值</li>
+<li>对DirectColor,一个pixel值被分解成独立的RGB域,并且每个域单独索引 colormap中一个对应的值,RGB值可以动态改变</li>
+<li>TrueColor处理方式和DirectColor一直,除了其有预定义的,只读的RGB值. 这些RGB值是取决于服务器的,在每个primary中提供线性或者接近线性的 ramp</li>
+<li>StaticCOlor类似RseduoColor,除了Colormap有预定义的只读的RGB值</li>
+<li>StaticGray类似StaticColor除了RGB值对任何单个pixel值都是一样的, 因此导致产生shades of gray,,, colormap只有两个条目的StaticGray可 以看做是黑白的.</li>
+</ul>
+<p>xxxx</p>
+<h2 id="window属性">window属性</h2>
+<p>所有输入输出window都有border,一个可选的背景,一个事件抑制掩码, 一个属性该列表. windowborder可以是一个solid color或者一个pattern, 叫做一个tile.除了root之外的所有window都有parent window..</p>
+<p>输入输出和input only的window 都有下面的这些属性:</p>
+<ul>
+<li>win-gravity</li>
+<li>event-mask</li>
+<li>do-not-propagete-mask</li>
+<li>override-redirect</li>
+<li>cursor</li>
+</ul>
+<p>input only的window有且只有以上属性,如果你指定其他属性的话,会导致 BadMatch错误</p>
+<p>input only的window用于在不必输出的情况下控制输入事件. 输入窗口是不 可见的, 只能用于控制光标,输入事件生成, 以及捕获,不能用于任何图形 请求.input only的窗口不能有输入输出类型的下级</p>
+<p>window有编程的width和pattern以及一个背景patten或者tile.像素值可以 用于solid color..背景和边框pixmap在创建window时候可以立即销毁..</p>

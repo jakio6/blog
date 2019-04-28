@@ -1,0 +1,44 @@
+<h1 id="是什么">是什么</h1>
+<p>Gnu guile 的异步编程库,基于actor模型,使用delimited continuations来避免回调的混乱, 便于生成简洁,易读的非阻塞代码</p>
+<p>8sync也只在包含batteries??. 想要创建你自己的IRC机器人吗? 下面这个是从教程中提取出来的实际例子:</p>
+<pre><code>(define-class &lt;my-irc-bot&gt; (&lt;irc-bot&gt;))
+
+(define-method (handle-line (irc-bot &lt;my-irc-bot&gt;) message
+                            speaker channel line emote?)
+  (define my-name (irc-bot-username irc-bot))
+  (define (looks-like-me? str)
+    (or (equal? str my-name)
+        (equal? str (string-concatenate (list my-name &quot;:&quot;)))))
+  (match (string-split line #\space)
+    (((? looks-like-me? _) action action-args ...)
+     (match action
+       ;; The classic botsnack!
+       (&quot;botsnack&quot;
+        (&lt;- (actor-id irc-bot) &#39;send-line channel
+            &quot;Yippie! *does a dance!*&quot;))
+       ;; Return greeting
+       ((or &quot;hello&quot; &quot;hello!&quot; &quot;hello.&quot; &quot;hi&quot; &quot;hi!&quot;)
+        (&lt;- (actor-id irc-bot) &#39;send-line channel
+            (format #f &quot;Oh hi ~a!&quot; speaker)))
+       ;; Default
+       (_
+        (&lt;- (actor-id irc-bot) &#39;send-line channel
+            &quot;*stupid puppy look*&quot;))))))
+</code></pre>
+<p>8sync处于alpha阶段,但是前途光明. ...</p>
+<h1 id="前言">前言</h1>
+<p>..</p>
+<p>8sync优点:</p>
+<ul>
+<li>使用演员模型作为其基本的并发同步机制. actor模型是无共享的异步环境, 不需要担心死锁或者其他奇怪的问题. actor是代码和状态的模块化单元,相互之间通过消息进行通信</li>
+<li>如果你已经有足够的异步编程经验, 你应该对"callback hell"这个让人发指的术语十分熟悉. 要避免"callback hell" 通常忘记其他的?并且仍旧难以封装你的编程模式...</li>
+<li>即使是非阻塞IO代码也是非常易于编写.在Guile 2.2中引入可挂起端口之后,编写异步非阻塞代码和编程同样的同步代码 没什么区别.</li>
+<li>"batteries included"</li>
+<li>非常注重live hacking. 如果使用Emacs插件Geiser模式的话,使用8sync的开发者可以在代码运行期间改变和调节其行为. 这使得,调试和开发过程更加简单..</li>
+</ul>
+<p>以后,8sync还将会提供在不同线程,不同进程,不同机器上滋生进程以及对应的通信能力...</p>
+<p>但是8sync还很年轻,api还处于巩固阶段.....</p>
+<h1 id="教程">教程</h1>
+<h2 id="21-笨笨的小irc机器人">2.1 笨笨的小irc机器人</h2>
+<p>IRC,互联网中继协议.经典的互联网通信协议. 其被证明是最好的学习网络编程的地方. 我们将以 聊天机器人来入门8sync</p>
+<p>首先, 我们需要导入一些模块.在文件首加上这些 拜拜,LISP is not of my type , for now at least</p>
