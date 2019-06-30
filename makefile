@@ -19,7 +19,7 @@ htmlfile := $(foreach var,${markdownfile},$(dir ${var})html/$(basename $(notdir 
 index.html : ${htmlfile}
 	@echo $@
 	@cat info.html > $@ # 这个就不加到依赖了,烦啊
-	@echo $^ | tr ' ' '\n' | sed 's/\(.*html\/\(.*\)\.html\)/<li><a href="\1">\2<\/a><\/li>/' >> $@
+	@echo $^ | tr ' ' '\n' |sort -r | sed 's/\(.*html\/\(.*\)\.html\)/<li><a href="\1">\2<\/a><\/li>/' >> $@
 
 html:
 	mkdir html
